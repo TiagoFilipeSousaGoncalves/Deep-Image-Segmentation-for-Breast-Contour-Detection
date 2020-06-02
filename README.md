@@ -1,1 +1,1 @@
-# Deep-Image-Segmentation-for-Breast-Contour-Detection
+# Deep Image Segmentation for Breast Contour Detection
