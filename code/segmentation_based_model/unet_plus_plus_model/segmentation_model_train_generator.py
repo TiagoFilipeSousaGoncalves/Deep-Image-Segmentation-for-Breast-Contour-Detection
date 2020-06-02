@@ -1,14 +1,17 @@
+# Imports
 import numpy as np
 import cv2
 import matplotlib.pyplot as plt
-from skimage.transform import rotate as rotate_
 import math
 
+# Helper Functions
+# Translate Points Function
 def translate_points(point,translation): 
     point = point + translation 
     
     return point
 
+# Rotate Points Function
 def rotate_points(origin, point, angle):
     """
     Rotate a point counterclockwise by a given angle around a given origin.
@@ -22,13 +25,11 @@ def rotate_points(origin, point, angle):
     qy = oy + math.sin(angle) * (px - ox) + math.cos(angle) * (py - oy)
     return qx, qy
 
-
+# Generator Class
 class Generator(object):
     def __init__(self,
                  X_train,
-                 #heatmap_train,
                  Mask_train,
-                 #y_train,
                  batchsize=2,
                  flip_ratio=0.1,
                  translation_ratio=0.1,
@@ -42,9 +43,7 @@ class Generator(object):
         ---------
         """
         self.X_train = X_train
-        #self.heatmap_train = heatmap_train
         self.Mask_train = Mask_train
-        #self.y_train = y_train
         self.size_train = X_train.shape[0]
         self.batchsize = batchsize
         self.flip_ratio = flip_ratio
@@ -62,12 +61,7 @@ class Generator(object):
         """Flip image batch"""
         indices = self._random_indices(self.flip_ratio)
         self.inputs[indices] = self.inputs[indices, :, ::-1, :]
-        #self.heatmap[indices] = self.heatmap[indices, :, ::-1]
         self.mask[indices] = self.mask[indices, :, ::-1]
-        
-        #self.targets[indices, ::2] = 1 - self.targets[indices, ::2]
-        #for a, b in self.flip_indices:
-        #    self.targets[indices, a], self.targets[indices, b] = (self.targets[indices, b], self.targets[indices, a])
             
             
     def translation(self): 
@@ -76,7 +70,6 @@ class Generator(object):
         tx = np.random.randint(-50, 50)
         ty = np.random.randint(-30, 30)
         
-        heatmap = self.mask[indices,:,:]
         mask = self.mask[indices,:,:]
         image = self.inputs[indices,:,:,:]
         
@@ -87,12 +80,6 @@ class Generator(object):
              
         mask = np.reshape(mask,(-1,384,512))
         
-        #for i in range(np.shape(heatmap)[0]):
-          #heatmap[i, :, :, 0] = cv2.warpAffine(heatmap[i, :, :, 0], np.float32([[1,0,tx],[0,1,ty]]),(512,384))
-          
-        
-        #heatmap = np.reshape(heatmap, (-1, 384, 512))
-        
              
         for i in range(np.shape(image)[0]):
             for j in range(3):
@@ -100,22 +87,8 @@ class Generator(object):
             
         
         mask = np.reshape(mask,(-1,384,512,1))
-        #heatmap = np.reshape(heatmap, (-1, 384, 512, 1))
-        
-        #self.heatmap[indices] = heatmap[:]
         self.mask[indices] = mask[:]
         self.inputs[indices,:,:,:] = image[:,:,:,:]
-
-        #x_t = self.targets[indices, ::2]
-        #y_t = self.targets[indices, 1::2]
-        
-        #for i in range(np.shape(x_t)[0]):
-            #x_t[i] = translate_points(x_t[i],tx/512)
-            #y_t[i] = translate_points(y_t[i],ty/512)
-            
-            
-        #self.targets[indices, ::2] = x_t
-        #self.targets[indices, 1::2] = y_t
 
 
     def rotate(self):
@@ -129,19 +102,7 @@ class Generator(object):
             for j in range(3): 
                 self.inputs[i,:,:,j] = cv2.warpAffine(self.inputs[i,:,:,j], M, (512,384))
             self.mask[i,:,:,0] = cv2.warpAffine(self.mask[i, :, :, 0], M, (512,384))
-            #self.heatmap[i, :, :, 0] = cv2.warpAffine(self.heatmap[i, :, :, 0], M, (512, 384))
-                        
-        #x_r = []
-        #y_r = [] 
-        
-        #j = 0 
-        #for i in indices: 
-            #x_r.append(self.targets[i][0:74:2])
-            #y_r.append(self.targets[i][1:75:2])
-            #x_r[j], y_r[j] = rotate_points((256/512,192/512),(x_r[j],y_r[j]),(-angle * 2 * np.pi)/360)
-            #self.targets[i][0:74:2] = x_r[j] 
-            #self.targets[i][1:75:2] = y_r[j]
-            #j += 1
+
 
     def generate(self, batchsize=32): 
         print(self.batchsize,'batchsize')
@@ -150,13 +111,10 @@ class Generator(object):
             cuts = [(b, min(b + self.batchsize, self.size_train)) for b in range(0, self.size_train, self.batchsize)]
             for start, end in cuts:
                 self.inputs = self.X_train[start:end].copy()
-                #self.heatmap = self.heatmap_train[start:end].copy()
                 self.mask = self.Mask_train[start:end].copy()
-                #self.targets = self.y_train[start:end].copy()
                 self.actual_batchsize = self.inputs.shape[0]  # Need this to avoid indices out of bounds
                 self.flip()
                 self.translation()
                 self.rotate()
                 
                 yield (self.inputs, self.mask)
-                #yield (self.inputs, {'heatmaps_1':self.heatmap, 'heatmaps_2':self.heatmap, 'heatmaps_3':self.heatmap, 'masks':self.mask, 'keypoints':self.targets})
