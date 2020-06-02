@@ -111,3 +111,5 @@ for index in range(np.shape(train_indices_list)[0]):
 
         # Save model weights
         model.save_weights(os.path.join(segmentation_based_model_unet_pp_weights_dir, 'unet_pp_ADADELTA_CV5_Fold_{}.hdf5'.format(index)))
+
+print('Segmentation Based Model U-Net++ Training finished.')

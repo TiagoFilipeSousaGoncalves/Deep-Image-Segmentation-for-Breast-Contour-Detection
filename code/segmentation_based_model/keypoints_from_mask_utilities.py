@@ -1,20 +1,15 @@
-import numpy as np 
-import pickle
-import _pickle as cPickle
+# Imports 
+import numpy as np
 import cv2
 from skimage import measure
 import matplotlib.pyplot as plt
-import time
 
-startTime = time.time()
-
-
-
+# Segmentation Based Model Functions
 # Euclidean Distance to Check Points Distances
 def compute_euclidean_distance(a, b):
     return np.sqrt(np.sum((a-b)**2))
 
-
+# Keypoints from Masks Function
 def get_keypoints_from_breasts_masks(breasts_masks, threshold_kpts=400, PLOTS=False):
     contours_list = []
     n = int(breasts_masks.shape[0])
@@ -31,7 +26,7 @@ def get_keypoints_from_breasts_masks(breasts_masks, threshold_kpts=400, PLOTS=Fa
         if PLOTS:
             # Display the image and plot all contours found
             fig, ax = plt.subplots()
-            ax.imshow(gray_image, cmap=plt.cm.gray)
+            ax.imshow(gray_image, cmap='gray')
 
             for n, contour in enumerate(contours):
                 ax.plot(contour[:, 1], contour[:, 0], linewidth=2)
@@ -78,7 +73,7 @@ def get_keypoints_from_breasts_masks(breasts_masks, threshold_kpts=400, PLOTS=Fa
     return contours_list
 
 
-
+# Plot Keypoints from Breast Masks Contours Function
 def plot_keypoints_from_breast_masks_contours(breasts_masks, contours_keypoints):
     # Let's Plot Breast's Contours
     n = int(breasts_masks.shape[0])
@@ -95,6 +90,7 @@ def plot_keypoints_from_breast_masks_contours(breasts_masks, contours_keypoints)
         plt.show()
 
 
+# Function to perform Segmentation Based Model Predictions
 def mix_isbi_and_contours(contours_keypoints, isbi_preds):
     # Convert processed preds to column array notation
     isbi_preds = np.array(isbi_preds)
@@ -137,6 +133,7 @@ def mix_isbi_and_contours(contours_keypoints, isbi_preds):
     return preds_column_array
 
 
+# Convert predictions to the ISBI notation
 def mixed_to_our_notation(preds_column_array):
     # Let's Convert Column Notation To Our Notation
     # x_coord are even numbers, y_coord are odd numbers
@@ -155,40 +152,3 @@ def mixed_to_our_notation(preds_column_array):
     print(np.shape(final_contours))
 
     return np.array(final_contours)
-"""
-fold = 4
-with open('/home/ctm/Desktop/GitLab/deep-image-segmentation-for-breast-contour-detection/unet_pp_preds_CV5_Fold_{}.pickle'.format(fold), 'rb') as f:
-    masks = cPickle.load(f)
-
-
-with open('/home/ctm/Desktop/GitLab/deep-image-segmentation-for-breast-contour-detection/isbi_preds_w_only_CV_Fold_{}.pickle'.format(fold), 'rb') as f:
-    isbi = cPickle.load(f)
-
-masks = np.array(masks).reshape((-1, 384, 512))
-masks *= 255
-
-
-PLOT_AND_SAVE_MASKS = True
-
-if PLOT_AND_SAVE_MASKS:
-    for i in range(masks.shape[0]):
-        plt.axis('off')
-        plt.imshow(masks[i], cmap='gray')
-        plt.savefig('mask'+str(i), bbox_inches='tight', pad_inches=0.0)
-        plt.show()
-
-
-masks_contours = get_keypoints_from_breasts_masks(masks)
-
-mixed = mix_isbi_and_contours(masks_contours, isbi_preds=isbi)
-
-# mixed = mixed_to_our_notation(mixed)
-
-# plot_keypoints_from_breast_masks_contours(masks, masks_contours)
-plot_keypoints_from_breast_masks_contours(masks, mixed)
-
-print ('The script took {} second !'.format(time.time() - startTime))
-
-# with open('/home/ctm/Desktop/GitLab/deep-image-segmentation-for-breast-contour-detection/mixed_preds_CV_Fold_{}.pickle'.format(fold), 'wb') as f:
-#    cPickle.dump(mixed, f, -1)
-"""

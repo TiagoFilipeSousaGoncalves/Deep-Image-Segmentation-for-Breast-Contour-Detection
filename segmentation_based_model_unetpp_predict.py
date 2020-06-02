@@ -1,67 +1,110 @@
+# Imports
+import numpy as np 
+import _pickle as cPickle
+import os 
+import time 
+
+# Tensorflow Imports
 import tensorflow as tf
+
+# Tensorflow trick to solve some compatibility issues 
 tf.compat.v1.disable_eager_execution()
 tf.compat.v1.experimental.output_all_intermediates(True)
 
-import numpy as np 
-import _pickle as cPickle
+# Keras Imports
+from keras import backend as K
 
-from segmentation_models import Unet, Nestnet, Xnet
-import time 
+# Segmentation Based Model Imports
+from code.segmentation_based_model.unet_plus_plus_model.segmentation_models import Xnet
 
-# prepare data
-#x, y = ... # range in [0,1], the network expects input channels of 3
-
-# prepare model
-model = Xnet(backbone_name='resnet50', encoder_weights='imagenet', decoder_block_type='transpose') # build UNet++
-# model = Unet(backbone_name='resnet50', encoder_weights='imagenet', decoder_block_type='transpose') # build U-Net
-# model = NestNet(backbone_name='resnet50', encoder_weights='imagenet', decoder_block_type='transpose') # build DLA
-
-model.compile('Adadelta', 'binary_crossentropy', ['binary_accuracy'])
-model.summary()
-
-fold = 4
-
-model.load_weights('/home/ctm/Desktop/GitLab/deep-image-segmentation-for-breast-contour-detection/CV5_model_UNetPP_29nov2019/unet_pp_ADADELTA_CV5_Fold_{}.hdf5'.format(fold))
-
-with open('/home/ctm/Desktop/GitLab/deep-image-segmentation-for-breast-contour-detection/code/Wilson_Files_Data/X_train_221.pickle', 'rb') as fp:
-    X_train = cPickle.load(fp)
-
-with open('/home/ctm/Desktop/GitLab/deep-image-segmentation-for-breast-contour-detection/code/Wilson_Files_Data/X_test_221.pickle', 'rb') as fp:
-    X_test = cPickle.load(fp)
+# CUDA Environment Variables (adapt them to your personal settings)
+# os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
+# os.environ["CUDA_VISIBLE_DEVICES"]="0"
 
 
-with open('/home/ctm/Desktop/GitLab/deep-image-segmentation-for-breast-contour-detection/test_indices_list.pickle', 'rb') as f:
-    test_indices_list = cPickle.load(f)
+# GLOBAL VARIABLES
+# FOLDS
+FOLDS = [i for i in range(5)]
 
+# Data Directory
+data_directory = 'data/resized'
+
+# Results Main Directory
+results_dir = 'results'
+
+# Segmentation Based Model Directory
+segmentation_based_model_results_dir = os.path.join(results_dir, 'segmentation-based-model')
+if os.path.isdir(segmentation_based_model_results_dir) == False:
+        os.mkdir(segmentation_based_model_results_dir)
+
+# Segmentation Based Model U-Net++ Directory
+segmentation_based_model_unet_pp_dir = os.path.join(segmentation_based_model_results_dir, 'unet-pp')
+if os.path.isdir(segmentation_based_model_unet_pp_dir) == False:
+        os.mkdir(segmentation_based_model_unet_pp_dir)
+
+# Segmentation Based Model U-Net++ Weights Directory
+segmentation_based_model_unet_pp_weights_dir = os.path.join(segmentation_based_model_unet_pp_dir, 'weights')
+if os.path.isdir(segmentation_based_model_unet_pp_weights_dir) == False:
+        os.mkdir(segmentation_based_model_unet_pp_weights_dir)
+
+# Segmentation Based Model U-Net++ Predicted Masks Directory
+segmentation_based_model_unet_pp_masks_dir = os.path.join(segmentation_based_model_unet_pp_dir, 'predictions')
+if os.path.isdir(segmentation_based_model_unet_pp_masks_dir) == False:
+    os.mkdir(segmentation_based_model_unet_pp_masks_dir)
+
+# Open X data (images)
+# X_train data
+with open(os.path.join(data_directory, 'X_train_221.pickle'), 'rb') as fp: 
+        X_train = cPickle.load(fp)
+
+# X_test data
+with open(os.path.join(data_directory, 'X_test_221.pickle'), 'rb') as fp: 
+        X_test = cPickle.load(fp)
+
+# Concatenate both to obtain full X data
 X = np.concatenate((X_train, X_test))
-X = X[test_indices_list[fold]]
 
+# X data preprocessing
 X = np.array(X, dtype='float')
 
-with open('/home/ctm/Desktop/GitLab/deep-image-segmentation-for-breast-contour-detection/code/Wilson_Files_Data/mask_train_221.pickle', 'rb') as fp:
-    mask_train = cPickle.load(fp)
 
-with open('/home/ctm/Desktop/GitLab/deep-image-segmentation-for-breast-contour-detection/code/Wilson_Files_Data/mask_test_221.pickle', 'rb') as fp:
-    mask_test = cPickle.load(fp)
+# Open test indices list
+with open('data/train-test-indices/test_indices_list.pickle', 'rb') as f:
+    test_indices_list = cPickle.load(f)
 
 
-mask = np.concatenate((mask_train, mask_test))
-mask = mask[test_indices_list[fold]]
+# Iterate through folds
+for fold in FOLDS:
+    print('Current fold: {}'.format(fold))
 
-mask = np.array(mask) / np.max(mask)
-mask = mask.reshape((-1, 384, 512, 1))
+    # Clear Keras Session to avoid RAM-memory problems
+    K.clear_session()
 
-print(np.max(mask), np.min(mask))
+    # Create a model object
+    model = Xnet(backbone_name='resnet50', encoder_weights='imagenet', decoder_block_type='transpose') # build UNet++
+    model.compile('Adadelta', 'binary_crossentropy', ['binary_accuracy'])   
+    # model.summary()
+    
+    # Load model weights
+    print("Loading model weights...")
+    weights = os.path.join(segmentation_based_model_unet_pp_weights_dir, 'unet_pp_ADADELTA_CV5_Fold_{}.hdf5'.format(fold))
+    model.load_weights(weights)
+    print("Model weights loaded.")
 
-#evaluation = model.evaluate(X, mask, batch_size=1, verbose=True)
-#print(evaluation)
-"""No Aug: [Loss, Acc] = [0.13015010908468447, 0.9821957349777222]"""
-"""W/ Aug: [Loss, Acc] = [0.08433691901502324, 0.9784207344055176]"""
-"""W/Aug and ADADELTA: [Loss, Acc] = [0.12168492265601656, 0.9858260750770569]"""
+    # Fold X_data
+    X_fold_data = X[test_indices_list[fold]]
 
-startTime = time.time()
-predictions = model.predict(X, batch_size=1, verbose=True)
-print ('The script took {} second !'.format(time.time() - startTime))
+    # Start time to measure algorithm execution performance
+    startTime = time.time()
 
-with open('unet_pp_preds_CV5_Fold_{}.pickle'.format(fold), 'wb') as fp:
-    cPickle.dump(predictions, fp, -1)
+    # Generate U-Net++ predictions (U-Net++ predicted masks)
+    predictions = model.predict(X_fold_data, batch_size=1, verbose=True)
+
+    # Elapsed time computation
+    print ('The script took {} seconds for fold {}!'.format(time.time() - startTime, fold))
+
+    # Save U-Net++ predictions file (masks)
+    with open(os.path.join(segmentation_based_model_unet_pp_masks_dir, 'unet_pp_preds_CV5_Fold_{}.pickle'.format(fold)), 'wb') as fp:
+        cPickle.dump(predictions, fp, -1)
+
+print('Segmentation Based Model U-Net++ Masks Prediction finished.')
