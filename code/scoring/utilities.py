@@ -40,18 +40,7 @@ def spline(points, n_points=5000):
     x = points[:,0]
     y = points[:,1]
 
-    # Remove duplicates
-    # x = list(dict.fromkeys(x))
-    # x = np.array(x)
-    # x = np.reshape(x, (-1, 1))
-
-    # y = list(dict.fromkeys(y))
-    # y = np.array(y)
-    # y = np.reshape(y, (-1, 1))
-
-    # print('x: ', x)
-    # print('y: ', y)
-    # Minor Bug Fix On Interpolation
+    # Minor Bug Fix On Interpolation, check this if you are getting errors
     # Check: https://stackoverflow.com/questions/47948453/scipy-interpolate-splprep-error-invalid-inputs
     # okay = np.where(np.abs(np.diff(x)) + np.abs(np.diff(y)) > 0)
     # xp = np.r_[x[okay], x[-1], x[0]]
@@ -64,6 +53,7 @@ def spline(points, n_points=5000):
     out = interpolate.splev(t, tck)
     return out
 
+# Scoring Function
 def scoring(predictions, y, img_shape, dataset_diagonal, dataset=False):
     # Diagonals per dataset
     # Dataset '120'
@@ -97,17 +87,6 @@ def scoring(predictions, y, img_shape, dataset_diagonal, dataset=False):
     truth_l_nipple = y[70:72]
     truth_r_nipple = y[72:74]
 
-    #truth_breasts = y[0:68]
-    
-
-    #truth_l_nipple = y[68:70]
-
-    
-    #truth_r_nipple = y[70:72]
-
-    #truth_l_nipple = y[68:70]
-    #truth_r_nipple = y[70:72]
-
     # Compute Endpoints Scores
     score.append(compute_euclidean_distance(predictions[0], truth_lp) * (normalize / diagonal))
     score.append(compute_euclidean_distance(predictions[1], truth_midl) * (normalize / diagonal))
@@ -118,17 +97,13 @@ def scoring(predictions, y, img_shape, dataset_diagonal, dataset=False):
     score.append(get_curves_distance(np.array(predictions[4], dtype='float64'), np.array(truth_l_breast, dtype='float64')) * (normalize / diagonal))
     score.append(get_curves_distance(np.array(predictions[5], dtype='float64'), np.array(truth_r_breast, dtype='float64')) * (normalize / diagonal))
     
-    #Change this every time you change evaluation method
-    #score.append(get_curves_distance(np.array(predictions[4], dtype='float64'), np.array(truth_breasts, dtype='float64') * (normalize / diagonal)))
-    #score.append(compute_euclidean_distance(predictions[5], truth_l_nipple) * (normalize / diagonal))
-    #score.append(compute_euclidean_distance(predictions[6], truth_r_nipple) * (normalize / diagonal))
-    
     # Compute Nipples Scores
     score.append(compute_euclidean_distance(predictions[6], truth_l_nipple) * (normalize / diagonal))
     score.append(compute_euclidean_distance(predictions[7], truth_r_nipple) * (normalize / diagonal))
     
     return score
 
+# Final Scoring Function
 def dense_scoring(scores):
     
     scores = np.asarray(scores)
@@ -139,7 +114,6 @@ def dense_scoring(scores):
                   ]
     
     breast_contour_scores = scores[:,4:6]
-    # breast_contour_scores = scores[:,4]
     breast_contour = [np.mean(breast_contour_scores),
                       np.std(breast_contour_scores),
                       np.max(breast_contour_scores)
@@ -172,16 +146,25 @@ def to_strange_fmt(y):
     # Append Nipples
     lpredictions.append(y[70:72])
     lpredictions.append(y[72:74])
-    
-    # lpredictions.append(y)
-
-
-    
-    # if mode == 'hybrid':
-    #     lpredictions.append(y[68:70])
-    #     lpredictions.append(y[70:72])
-
-    # elif mode == 'mixed':
-
 
     return lpredictions
+
+# Resize Keypoints to Original Size Function
+def resize_keypoints_to_original_size(keypoint_predictions, X_original):
+    X_original = np.array(X_original)
+    keypoint_predictions = np.array(keypoint_predictions).copy()
+    
+    final_predictions = [] 
+
+    for i in range(X_original.shape[0]):
+        rows, columns, channels = np.shape(X_original[i])
+        x1 = rows / 1536
+        x2 = columns / 2048
+        for j in range(keypoint_predictions[i].shape[0]): 
+            if(j % 2 == 0):
+                keypoint_predictions[i][j] *= x2
+            else: 
+                keypoint_predictions[i][j] *= x1
+        final_predictions.append(keypoint_predictions[i] * 4)
+        
+    return final_predictions
