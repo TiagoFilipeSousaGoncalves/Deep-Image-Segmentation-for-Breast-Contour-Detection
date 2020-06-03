@@ -43,7 +43,7 @@ $ python isbi_model_predict.py
 
 ### Hybrid Model
 #### Train & Predict
-We are then ready to move to Hybrid Model, which integrates train and prediction in the same script:
+We are then ready to move to the Hybrid Model, which integrates train and prediction in the same script:
 ```bash
 $ python hybrid_model_predict.py
 ```
@@ -95,7 +95,7 @@ $ jupyter-lab
 ```
 
 ## Citation
-If you use this repository in your own research work, please cite this paper:
+If you use this repository in your research work, please cite this paper:
 ```bibtex
 @article{gonccalvesnovel,
   title={A novel approach to keypoint detection for the aesthetic evaluation of breast cancer surgery outcomes},
